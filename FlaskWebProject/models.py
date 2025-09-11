@@ -2,7 +2,7 @@ from datetime import datetime
 from FlaskWebProject import app, db, login
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContentSettings
 import string, random
 from werkzeug.utils import secure_filename
 from flask import flash
@@ -55,19 +55,26 @@ class Post(db.Model):
 
         if file:
             filename = secure_filename(file.filename)
-            fileextension = filename.rsplit('.', 1)[1]
+            fileextension = filename.rsplit('.', 1)[-1] if '.' in filename else ''
             Randomfilename = id_generator()
-            filename = Randomfilename + '.' + fileextension
+            filename = f"{Randomfilename}.{fileextension}" if fileextension else Randomfilename
 
             try:
-                # Upload new file
+                # Upload new file with proper content type
                 blob_client = blob_container_client.get_blob_client(filename)
-                blob_client.upload_blob(file, overwrite=True)
+                blob_client.upload_blob(
+                    file,
+                    overwrite=True,
+                    content_settings=ContentSettings(content_type=file.mimetype)
+                )
 
                 # Delete old file if exists
                 if self.image_path:
-                    old_blob_client = blob_container_client.get_blob_client(self.image_path)
-                    old_blob_client.delete_blob()
+                    try:
+                        old_blob_client = blob_container_client.get_blob_client(self.image_path)
+                        old_blob_client.delete_blob()
+                    except Exception:
+                        pass
             except Exception as e:
                 flash(str(e))
 
