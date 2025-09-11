@@ -2,15 +2,14 @@ from datetime import datetime
 from FlaskWebProject import app, db, login
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from azure.storage.blob import BlobServiceClient
 import string, random
 from werkzeug.utils import secure_filename
 from flask import flash
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 
-# Azure Blob configuration
-blob_container = app.config['BLOB_CONTAINER']
+# Initialize Azure Blob Storage client
 blob_service_client = BlobServiceClient.from_connection_string(app.config['BLOB_CONNECTION_STRING'])
-container_client = blob_service_client.get_container_client(blob_container)
+blob_container_client = blob_service_client.get_container_client(app.config['BLOB_CONTAINER'])
 
 def id_generator(size=32, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
@@ -55,20 +54,23 @@ class Post(db.Model):
 
         if file:
             filename = secure_filename(file.filename)
-            fileextension = filename.rsplit('.',1)[1]
+            fileextension = filename.rsplit('.', 1)[1]
             Randomfilename = id_generator()
             filename = Randomfilename + '.' + fileextension
+
             try:
-                # Upload file
-                blob_client = container_client.get_blob_client(filename)
+                # Upload blob
+                blob_client = blob_container_client.get_blob_client(filename)
                 blob_client.upload_blob(file, overwrite=True)
 
                 # Delete old blob if exists
                 if self.image_path:
-                    old_blob_client = container_client.get_blob_client(self.image_path)
-                    old_blob_client.delete_blob()
+                    old_blob = blob_container_client.get_blob_client(self.image_path)
+                    old_blob.delete_blob()
+
             except Exception as e:
-                flash(str(e))
+                flash(f"Blob upload failed: {str(e)}")
+
             self.image_path = filename
 
         if new:
