@@ -7,9 +7,10 @@ import string, random
 from werkzeug.utils import secure_filename
 from flask import flash
 
-# Initialize Azure Blob Storage client
-blob_service_client = BlobServiceClient.from_connection_string(app.config['BLOB_CONNECTION_STRING'])
-blob_container_client = blob_service_client.get_container_client(app.config['BLOB_CONTAINER'])
+# Initialize Blob Storage Client
+blob_connection_string = app.config.get('BLOB_CONNECTION_STRING')
+blob_service = BlobServiceClient.from_connection_string(blob_connection_string)
+blob_container_client = blob_service.get_container_client(app.config['BLOB_CONTAINER'])
 
 def id_generator(size=32, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
@@ -59,17 +60,16 @@ class Post(db.Model):
             filename = Randomfilename + '.' + fileextension
 
             try:
-                # Upload blob
+                # Upload new file
                 blob_client = blob_container_client.get_blob_client(filename)
                 blob_client.upload_blob(file, overwrite=True)
 
-                # Delete old blob if exists
+                # Delete old file if exists
                 if self.image_path:
-                    old_blob = blob_container_client.get_blob_client(self.image_path)
-                    old_blob.delete_blob()
-
+                    old_blob_client = blob_container_client.get_blob_client(self.image_path)
+                    old_blob_client.delete_blob()
             except Exception as e:
-                flash(f"Blob upload failed: {str(e)}")
+                flash(str(e))
 
             self.image_path = filename
 
