@@ -1,3 +1,4 @@
+
 """
 The flask application package.
 """
@@ -10,6 +11,15 @@ from flask_session import Session
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+
+# Log to a file with INFO level
+handler = logging.FileHandler('app.log')  
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+app.logger.addHandler(handler)
+
 # TODO: Add any logging levels and handlers with app.logger
 Session(app)
 db = SQLAlchemy(app)
