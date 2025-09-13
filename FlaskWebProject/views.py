@@ -1,10 +1,9 @@
-
 """
 Routes and views for the Flask application.
 """
 
 from datetime import datetime
-from flask import render_template, flash, redirect, request, session, url_for, current_app
+from flask import render_template, flash, redirect, request, session, url_for
 from werkzeug.urls import url_parse
 from config import Config
 from FlaskWebProject import app, db
@@ -25,6 +24,7 @@ imageSourceUrl = f"https://{app.config['BLOB_ACCOUNT']}.blob.core.windows.net/{a
 def home():
     user = User.query.filter_by(username=current_user.username).first_or_404()
     posts = Post.query.all()
+    app.logger.info(f"Home page loaded for user: {current_user.username}")
     return render_template('index.html', title='Home Page', posts=posts)
 
 
@@ -35,8 +35,13 @@ def new_post():
     form = PostForm(request.form)
     if form.validate_on_submit():
         post = Post()
-        post.save_changes(form, request.files['image_path'], current_user.id, new=True)
-        return redirect(url_for('home'))
+        try:
+            post.save_changes(form, request.files['image_path'], current_user.id, new=True)
+            app.logger.info(f"New post created by user: {current_user.username}, Title: {form.title.data}")
+            return redirect(url_for('home'))
+        except Exception as e:
+            app.logger.error(f"Failed to create post: {str(e)}")
+            flash("Error creating post")
     return render_template('post.html', title='Create Post', imageSource=imageSourceUrl, form=form)
 
 
@@ -46,8 +51,13 @@ def post(id):
     post = Post.query.get(int(id))
     form = PostForm(formdata=request.form, obj=post)
     if form.validate_on_submit():
-        post.save_changes(form, request.files['image_path'], current_user.id)
-        return redirect(url_for('home'))
+        try:
+            post.save_changes(form, request.files['image_path'], current_user.id)
+            app.logger.info(f"Post updated by user: {current_user.username}, Post ID: {id}")
+            return redirect(url_for('home'))
+        except Exception as e:
+            app.logger.error(f"Failed to update post {id}: {str(e)}")
+            flash("Error updating post")
     return render_template('post.html', title='Edit Post', imageSource=imageSourceUrl, form=form)
 
 
@@ -87,7 +97,7 @@ def authorized():
         return redirect(url_for("home"))
 
     if "error" in request.args:
-        app.logger.warning(f"MS login error: {request.args}")
+        app.logger.error(f"MS login error: {request.args}")
         return render_template("auth_error.html", result=request.args)
 
     if request.args.get("code"):
@@ -100,7 +110,7 @@ def authorized():
         )
 
         if "error" in result:
-            app.logger.warning(f"Invalid MS login attempt: {result.get('error_description')}")
+            app.logger.error(f"Invalid MS login attempt: {result.get('error_description')}")
             return render_template("auth_error.html", result=result)
 
         # Successful MS login
@@ -116,13 +126,16 @@ def authorized():
 # ==================== Logout ====================
 @app.route('/logout')
 def logout():
+    username = current_user.username if current_user.is_authenticated else "Unknown"
     logout_user()
     if session.get("user"):  # MS Login
         session.clear()
+        app.logger.info(f"User {username} logged out from MS login")
         return redirect(
             Config.AUTHORITY + "/oauth2/v2.0/logout" +
             "?post_logout_redirect_uri=" + url_for("login", _external=True)
         )
+    app.logger.info(f"User {username} logged out")
     return redirect(url_for('login'))
 
 
