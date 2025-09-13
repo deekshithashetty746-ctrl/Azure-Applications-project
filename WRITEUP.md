@@ -1,12 +1,17 @@
-# Write-up Template
+Analysis
 
-### Analyze, choose, and justify the appropriate resource option for deploying the app.
+Cost: App Service cheaper, auto-handles infra; VM higher cost (OS, patching, load balancer).
 
-*For **both** a VM or App Service solution for the CMS app:*
-- *Analyze costs, scalability, availability, and workflow*
-- *Choose the appropriate solution (VM or App Service) for deploying the app*
-- *Justify your choice*
+Scalability: App Service has built-in auto-scale; VM needs manual scale sets.
 
-### Assess app changes that would change your decision.
+Availability: App Service has built-in HA; VM requires setup of availability sets/zones.
 
-*Detail how the app and any other needs would have to change for you to change your decision in the last section.* 
+Workflow: App Service supports easy CI/CD; VM requires full infra management.
+
+Choice: Azure App Service (Web App) 
+
+Lower cost, built-in scaling & availability, easier deployment, focus on app not infra.
+
+When Choice May Change
+
+If app needs custom OS/runtime, high infra tuning, strict compliance, or heavy background jobs → VM is better.
